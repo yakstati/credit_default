@@ -59,8 +59,6 @@ class DataCleaner(TransformerMixin, BaseEstimator):
         X.loc[msld_isna_nocp_1, 'Months since last delinquent'] = 0
         X.loc[msld_isna_nocp_0, 'Months since last delinquent'] = -1
 
-        X = pd.get_dummies(data=X, prefix=None, prefix_sep='_', columns=['Home Ownership', 'Purpose', 'Term'], drop_first=True, dtype=int)
-
         return X
 
 class NaNCatboostImputer(TransformerMixin, BaseEstimator):
@@ -156,7 +154,7 @@ class NaNCatboostImputer(TransformerMixin, BaseEstimator):
     def transform(self, X):
         X = X.copy()
         miss_mask = X[self.target_col_name].isna()
-        X[f'{self.json_prefix}_filled'] = miss_mask
+        X[f'{self.json_prefix}_filled'] = miss_mask * 1
         X_to_model = X[miss_mask]
         X_to_model = X_to_model.drop(columns=[self.target_col_name, f'{self.json_prefix}_filled'], axis=1)
         X.loc[miss_mask, self.target_col_name] = self.imputer_.predict(X_to_model)

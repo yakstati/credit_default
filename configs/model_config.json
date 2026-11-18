@@ -1,3 +1,113 @@
 [
-
+    {
+        "model_name": "yicj_imputer",
+        "params": {
+            "depth": 4,
+            "l2_leaf_reg": 4.808513084587461,
+            "iterations": 924,
+            "learning_rate": 0.027659675098663863,
+            "random_strength": 0.8027123102064921
+        }
+    },
+    {
+        "model_name": "bankruptcies_imputer",
+        "params": {
+            "depth": 3,
+            "l2_leaf_reg": 2.0699787478844103,
+            "iterations": 1134,
+            "learning_rate": 0.029320865072147918,
+            "random_strength": 0.8298063012038446
+        }
+    },
+    {
+        "model_name": "credit_score_imputer",
+        "params": {
+            "depth": 6,
+            "l2_leaf_reg": 5.269972535351754,
+            "iterations": 1339,
+            "learning_rate": 0.01736792826425921,
+            "random_strength": 0.952856279049468
+        }
+    },
+    {
+        "model_name": "annual_income_imputer",
+        "params": {
+            "depth": 2,
+            "l2_leaf_reg": 0.1864298493037813,
+            "iterations": 1218,
+            "learning_rate": 0.01931052620241271,
+            "random_strength": 0.2511107988851333
+        }
+    },
+    {
+        "model_name": "DecisionTree",
+        "params": {
+            "max_depth": 132,
+            "min_samples_split": 38,
+            "min_samples_leaf": 30,
+            "max_features": "sqrt",
+            "random_state": 42,
+            "class_weight": "balanced"
+        }
+    },
+    {
+        "model_name": "RandomForest",
+        "params": {
+            "max_depth": 14,
+            "min_samples_split": 12,
+            "min_samples_leaf": 19,
+            "max_features": "log2",
+            "n_estimators": 82,
+            "random_state": 42,
+            "class_weight": "balanced"
+        }
+    },
+    {
+        "model_name": "GradientBoosting",
+        "params": {
+            "max_depth": 7,
+            "min_samples_split": 29,
+            "min_samples_leaf": 40,
+            "max_features": "sqrt",
+            "n_estimators": 329,
+            "learning_rate": 0.27457352418712866,
+            "random_state": 42
+        }
+    },
+    {
+        "model_name": "CatBoost",
+        "params": {
+            "depth": 9,
+            "l2_leaf_reg": 5.656536350508919,
+            "iterations": 284,
+            "learning_rate": 0.008807054345431041,
+            "random_strength": 0.7971733641216017,
+            "auto_class_weights": "Balanced"
+        }
+    },
+    {
+        "model_name": "XGBoost",
+        "params": {
+            "n_estimators": 678,
+            "max_depth": 4,
+            "learning_rate": 0.028658039417381174,
+            "reg_lambda": 1.803580316515275,
+            "random_state": 42
+        }
+    },
+    {
+        "model_name": "LightGBM",
+        "params": {
+            "n_estimators": 294,
+            "max_depth": 10,
+            "learning_rate": 0.0013309331159267164,
+            "reg_lambda": 9.837764595138204,
+            "num_leaves": 57,
+            "min_data_in_leaf": 87,
+            "subsample": 0.8309566294605474,
+            "feature_fraction": 0.5621466274778248,
+            "random_state": 42,
+            "class_weight": "balanced"
+        }
+    }
 ]
