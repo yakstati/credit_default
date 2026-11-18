@@ -63,26 +63,48 @@ class DataCleaner(TransformerMixin, BaseEstimator):
 
         return X
 
-class YicjImputer(TransformerMixin, BaseEstimator):
-    frozen_params = {
-            'silent':True,
-            #'cat_features':CAT_FEATURE_NAMES,
-            #'eval_metric':'RMSE',
-            'early_stopping_rounds':20,
-            'random_state':42
+class NaNCatboostImputer(TransformerMixin, BaseEstimator):
+    param_grid = {
+        "depth": optuna.distributions.IntDistribution(2, 10),
+        "l2_leaf_reg": optuna.distributions.FloatDistribution(1e-2, 15, log=True),
+        "iterations": optuna.distributions.IntDistribution(20, 1500, log=True),
+        "learning_rate": optuna.distributions.FloatDistribution(1e-3, 0.5, log=True),
+        "random_strength": optuna.distributions.FloatDistribution(1e-2, 1)     
     }
+    def __init__(self, target_col_name: str, model_type: str):
+        self.target_col_name = target_col_name
+        self.model_type = model_type
 
-    def __init__(self):
-        pass
+    def fit(self, X, y=None):
+        if (self.model_type == 'regression'):
+            self.frozen_params = {
+                'silent': True,
+                'random_state': 42,
+                'eval_metric' : 'RMSE'
+            }
+            self.imputer_ = CatBoostRegressor(**self.frozen_params)
+            self.optuna_metric = 'neg_root_mean_squared_error'
+        if (self.model_type == 'classification'):
+            self.frozen_params = {
+                'silent': True,
+                'random_state': 42,
 
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame=None):
-        X = X.copy()
+            }
+            self.imputer_ = CatBoostClassifier(**self.frozen_params)
+            self.optuna_metric = make_scorer(f1_score, average='weighted')
 
-        fit_mask = X['Years in current job'].notna()
-        target = X.loc[fit_mask, 'Years in current job']
-        X_train = X[fit_mask].drop('Years in current job', axis=1)
+        if (self.target_col_name == 'Years in current job'):
+            self.json_prefix = 'yicj'
+        elif (self.target_col_name == 'Bankruptcies'):
+            self.json_prefix = 'bankruptcies'
+        elif (self.target_col_name == 'Credit Score'):
+            self.json_prefix = 'credit_score'
+        elif (self.target_col_name == 'Annual Income'):
+            self.json_prefix = 'annual_income'
 
-        imputer = CatBoostClassifier(**self.frozen_params)
+        fit_mask = X[self.target_col_name].notna()
+        y_train = X.loc[fit_mask, self.target_col_name]
+        X_train = X[fit_mask].drop(self.target_col_name, axis=1)
 
         project_root = next(
             parent for parent in Path(__file__).resolve().parents
@@ -97,35 +119,27 @@ class YicjImputer(TransformerMixin, BaseEstimator):
         else:
             configs = []
 
-        model_info = next((p for p in configs if p["model_name"] == "yicj_imputer"), None)
+        model_info = next((p for p in configs if p["model_name"] == f'{self.json_prefix}_imputer'), None)
         self.best_params_ = model_info["params"] if model_info else None
 
         if self.best_params_ is None:
-            f1_weight = make_scorer(f1_score, average='weighted')
-            param_grid = {
-                    "depth": optuna.distributions.IntDistribution(2, 10),
-                    "l2_leaf_reg": optuna.distributions.FloatDistribution(1e-2, 15, log=True),
-                    "iterations": optuna.distributions.IntDistribution(20, 1500, log=True),
-                    "learning_rate": optuna.distributions.FloatDistribution(1e-3, 0.5, log=True),
-                    "random_strength": optuna.distributions.FloatDistribution(1e-2, 1)     
-                }
 
             cv = KFold(n_splits=3, random_state=42, shuffle=True)
 
             optuna_search = optuna.integration.OptunaSearchCV(
-                imputer,
-                param_grid,
+                self.imputer_,
+                self.param_grid,
                 cv=cv,
                 n_trials=30,
-                scoring=f1_weight,
+                scoring=self.optuna_metric,
                 random_state=42
             )
 
-            optuna_search.fit(X_train, target)
+            optuna_search.fit(X_train, y_train)
             self.best_params_ = optuna_search.best_params_
 
             model_info = {
-                "model_name": "yicj_imputer",
+                "model_name": f'{self.json_prefix}_imputer',
                 "params": self.best_params_
             }
 
@@ -134,279 +148,17 @@ class YicjImputer(TransformerMixin, BaseEstimator):
             with open(config_path, "w", encoding="utf-8") as config:
                 json.dump(configs, config, indent=4, ensure_ascii=False)
 
-        self.yicj_catboost_imputer_ = CatBoostClassifier(**self.frozen_params,**self.best_params_)
-        self.yicj_catboost_imputer_.fit(X_train, target)
-
-        self.feature_names_in_ = X.columns.tolist()
+        self.imputer_ = self.imputer_.set_params(**self.frozen_params, **self.best_params_)
+        self.imputer_.fit(X_train, y_train)
 
         return self
 
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        X = X.copy() 
-        miss_mask = X['Years in current job'].isna()
-        X['years_in_current_job_filled'] = miss_mask
-        X_to_model = X[miss_mask].drop('Years in current job', axis=1)
-        X.loc[miss_mask, 'Years in current job'] = self.yicj_catboost_imputer_.predict(X_to_model)
-
-        return X
-
-class Bankruptciesmputer(TransformerMixin, BaseEstimator):
-    frozen_params = {
-            'silent':True,
-            #'cat_features':CAT_FEATURE_NAMES,
-            #'eval_metric':'RMSE',
-            'early_stopping_rounds':20,
-            'random_state':42
-    }
-
-    def __init__(self):
-        pass
-
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame=None):
+    def transform(self, X):
         X = X.copy()
-
-        fit_mask = X['Bankruptcies'].notna()
-        target = X.loc[fit_mask, 'Bankruptcies']
-        X_train = X[fit_mask].drop('Bankruptcies', axis=1)
-
-        imputer = CatBoostClassifier(**self.frozen_params)
-
-        project_root = next(
-            parent for parent in Path(__file__).resolve().parents
-            if (parent / 'configs').is_dir()
-        )
-
-        config_path = project_root / 'configs' / 'model_config.json'
-
-        if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as config:
-                configs = json.load(config)
-        else:
-            configs = []
-
-        model_info = next((p for p in configs if p["model_name"] == "bankruptcies_imputer"), None)
-        self.best_params_ = model_info["params"] if model_info else None
-
-        if self.best_params_ is None:
-            f1_weight = make_scorer(f1_score, average='weighted')
-            param_grid = {
-                    "depth": optuna.distributions.IntDistribution(2, 10),
-                    "l2_leaf_reg": optuna.distributions.FloatDistribution(1e-2, 15, log=True),
-                    "iterations": optuna.distributions.IntDistribution(20, 1500, log=True),
-                    "learning_rate": optuna.distributions.FloatDistribution(1e-3, 0.5, log=True),
-                    "random_strength": optuna.distributions.FloatDistribution(1e-2, 1)     
-                }
-
-            cv = KFold(n_splits=3, random_state=42, shuffle=True)
-
-            optuna_search = optuna.integration.OptunaSearchCV(
-                imputer,
-                param_grid,
-                cv=cv,
-                n_trials=30,
-                scoring=f1_weight,
-                random_state=42
-            )
-
-            optuna_search.fit(X_train, target)
-            self.best_params_ = optuna_search.best_params_
-
-            model_info = {
-                "model_name": "bankruptcies_imputer",
-                "params": self.best_params_
-            }
-
-            configs.append(model_info)
-
-            with open(config_path, "w", encoding="utf-8") as config:
-                json.dump(configs, config, indent=4, ensure_ascii=False)
-
-        self.bankruptcies_catboost_imputer_ = CatBoostClassifier(**self.frozen_params,**self.best_params_)
-        self.bankruptcies_catboost_imputer_.fit(X_train, target)
-
-        self.feature_names_in_ = X.columns.tolist()
-
-        return self
-
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        X = X.copy() 
-        miss_mask = X['Bankruptcies'].isna()
-        X['bankruptcies_filled'] = miss_mask
-        X_to_model = X[miss_mask].drop('Bankruptcies', axis=1)
-        X.loc[miss_mask, 'Bankruptcies'] = self.bankruptcies_catboost_imputer_.predict(X_to_model)
+        miss_mask = X[self.target_col_name].isna()
+        X[f'{self.json_prefix}_filled'] = miss_mask
+        X_to_model = X[miss_mask]
+        X_to_model = X_to_model.drop(columns=[self.target_col_name, f'{self.json_prefix}_filled'], axis=1)
+        X.loc[miss_mask, self.target_col_name] = self.imputer_.predict(X_to_model)
 
         return X
-
-class CreditScoreImputer(TransformerMixin, BaseEstimator):
-    frozen_params = {
-            'silent':True,
-            #'cat_features':CAT_FEATURE_NAMES,
-            'eval_metric':'RMSE',
-            'early_stopping_rounds':20,
-            'random_state':42
-    }
-
-    def __init__(self):
-        pass
-
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame=None):
-        X = X.copy()
-
-        fit_mask = X['Credit Score'].notna()
-        target = X.loc[fit_mask, 'Credit Score']
-        X_train = X[fit_mask].drop('Credit Score', axis=1)
-
-        imputer = CatBoostRegressor(**self.frozen_params)
-
-        project_root = next(
-            parent for parent in Path(__file__).resolve().parents
-            if (parent / 'configs').is_dir()
-        )
-
-        config_path = project_root / 'configs' / 'model_config.json'
-
-        if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as config:
-                configs = json.load(config)
-        else:
-            configs = []
-
-        model_info = next((p for p in configs if p["model_name"] == "credit_score_imputer"), None)
-        self.best_params_ = model_info["params"] if model_info else None
-
-        if self.best_params_ is None:
-            param_grid = {
-                    "depth": optuna.distributions.IntDistribution(2, 10),
-                    "l2_leaf_reg": optuna.distributions.FloatDistribution(1e-2, 15, log=True),
-                    "iterations": optuna.distributions.IntDistribution(20, 1500, log=True),
-                    "learning_rate": optuna.distributions.FloatDistribution(1e-3, 0.5, log=True),
-                    "random_strength": optuna.distributions.FloatDistribution(1e-2, 1)     
-                }
-
-            cv = KFold(n_splits=3, random_state=42, shuffle=True)
-
-            optuna_search = optuna.integration.OptunaSearchCV(
-                imputer,
-                param_grid,
-                cv=cv,
-                n_trials=30,
-                scoring='neg_root_mean_squared_error',
-                random_state=42
-            )
-
-            optuna_search.fit(X_train, target)
-            self.best_params_ = optuna_search.best_params_
-
-            model_info = {
-                "model_name": "credit_score_imputer",
-                "params": self.best_params_
-            }
-
-            configs.append(model_info)
-
-            with open(config_path, "w", encoding="utf-8") as config:
-                json.dump(configs, config, indent=4, ensure_ascii=False)
-
-        self.credit_score_catboost_imputer_ = CatBoostRegressor(**self.frozen_params,**self.best_params_)
-        self.credit_score_catboost_imputer_.fit(X_train, target)
-
-        self.feature_names_in_ = X.columns.tolist()
-
-        return self
-
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        X = X.copy() 
-        miss_mask = X['Credit Score'].isna()
-        X['credit_score_filled'] = miss_mask
-        X_to_model = X[miss_mask].drop('Credit Score', axis=1)
-        X.loc[miss_mask, 'Credit Score'] = self.credit_score_catboost_imputer_.predict(X_to_model)
-
-        return X
-
-class AnnualIncomeImputer(TransformerMixin, BaseEstimator):
-    frozen_params = {
-            'silent':True,
-            #'cat_features':CAT_FEATURE_NAMES,
-            'eval_metric':'RMSE',
-            'early_stopping_rounds':20,
-            'random_state':42
-    }
-
-    def __init__(self):
-        pass
-
-    def fit(self, X: pd.DataFrame, y: pd.DataFrame=None):
-        X = X.copy()
-
-        fit_mask = X['Annual Income'].notna()
-        target = X.loc[fit_mask, 'Annual Income']
-        X_train = X[fit_mask].drop('Annual Income', axis=1)
-
-        imputer = CatBoostRegressor(**self.frozen_params)
-
-        project_root = next(
-            parent for parent in Path(__file__).resolve().parents
-            if (parent / 'configs').is_dir()
-        )
-
-        config_path = project_root / 'configs' / 'model_config.json'
-
-        if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as config:
-                configs = json.load(config)
-        else:
-            configs = []
-
-        model_info = next((p for p in configs if p["model_name"] == "annual_income_imputer"), None)
-        self.best_params_ = model_info["params"] if model_info else None
-
-        if self.best_params_ is None:
-            param_grid = {
-                    "depth": optuna.distributions.IntDistribution(2, 10),
-                    "l2_leaf_reg": optuna.distributions.FloatDistribution(1e-2, 15, log=True),
-                    "iterations": optuna.distributions.IntDistribution(20, 1500, log=True),
-                    "learning_rate": optuna.distributions.FloatDistribution(1e-3, 0.5, log=True),
-                    "random_strength": optuna.distributions.FloatDistribution(1e-2, 1)     
-                }
-
-            cv = KFold(n_splits=3, random_state=42, shuffle=True)
-
-            optuna_search = optuna.integration.OptunaSearchCV(
-                imputer,
-                param_grid,
-                cv=cv,
-                n_trials=30,
-                scoring='neg_root_mean_squared_error',
-                random_state=42
-            )
-
-            optuna_search.fit(X_train, target)
-            self.best_params_ = optuna_search.best_params_
-
-            model_info = {
-                "model_name": "annual_income_imputer",
-                "params": self.best_params_
-            }
-
-            configs.append(model_info)
-
-            with open(config_path, "w", encoding="utf-8") as config:
-                json.dump(configs, config, indent=4, ensure_ascii=False)
-
-        self.annual_income_catboost_imputer_ = CatBoostRegressor(**self.frozen_params,**self.best_params_)
-        self.annual_income_catboost_imputer_.fit(X_train, target)
-
-        self.feature_names_in_ = X.columns.tolist()
-
-        return self
-
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        X = X.copy() 
-        miss_mask = X['Annual Income'].isna()
-        X['annual_income_filled'] = miss_mask
-        X_to_model = X[miss_mask].drop('Annual Income', axis=1)
-        X.loc[miss_mask, 'Annual Income'] = self.annual_income_catboost_imputer_.predict(X_to_model)
-
-        return X
-
-
