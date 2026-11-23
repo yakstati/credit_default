@@ -42,19 +42,19 @@
     {
         "model_name": "LogisticRegression",
         "params": {
-            "C": 0.02180240105838914,
+            "C": 0.005461594930332201,
             "penalty": "l2",
             "class_weight": "balanced",
-            "max_iter": 1000
+            "max_iter": 290
         }
     },
     {
         "model_name": "DecisionTree",
         "params": {
-            "max_depth": 129,
-            "min_samples_split": 69,
-            "min_samples_leaf": 40,
-            "max_features": null,
+            "max_depth": 115,
+            "min_samples_split": 95,
+            "min_samples_leaf": 23,
+            "max_features": "sqrt",
             "random_state": 42,
             "class_weight": "balanced"
         }
@@ -62,24 +62,24 @@
     {
         "model_name": "RandomForest",
         "params": {
-            "max_depth": 4,
-            "min_samples_split": 2,
-            "min_samples_leaf": 29,
+            "max_depth": 25,
+            "min_samples_split": 49,
+            "min_samples_leaf": 30,
             "max_features": "log2",
-            "n_estimators": 330,
+            "n_estimators": 336,
             "random_state": 42,
-            "class_weight": "balanced_subsample"
+            "class_weight": "balanced"
         }
     },
     {
         "model_name": "GradientBoosting",
         "params": {
-            "max_depth": 8,
-            "min_samples_split": 34,
-            "min_samples_leaf": 49,
-            "max_features": "sqrt",
-            "n_estimators": 573,
-            "learning_rate": 0.4937905358109306,
+            "max_depth": 9,
+            "min_samples_split": 25,
+            "min_samples_leaf": 20,
+            "max_features": "log2",
+            "n_estimators": 1430,
+            "learning_rate": 0.24795913994506513,
             "random_state": 42
         }
     },
@@ -87,34 +87,34 @@
         "model_name": "CatBoost",
         "params": {
             "depth": 10,
-            "l2_leaf_reg": 14.33683655173104,
-            "iterations": 20,
-            "learning_rate": 0.0028310913432859526,
-            "random_strength": 0.8683484875499319,
+            "l2_leaf_reg": 7.199617793552478,
+            "iterations": 21,
+            "learning_rate": 0.00402538629656645,
+            "random_strength": 0.7510874961561309,
             "auto_class_weights": "Balanced"
         }
     },
     {
         "model_name": "XGBoost",
         "params": {
-            "n_estimators": 534,
-            "max_depth": 5,
-            "learning_rate": 0.039859679474293946,
-            "reg_lambda": 8.798498448796659,
+            "n_estimators": 561,
+            "max_depth": 9,
+            "learning_rate": 0.027140939630054504,
+            "reg_lambda": 7.3300651071958125,
             "random_state": 42
         }
     },
     {
         "model_name": "LightGBM",
         "params": {
-            "n_estimators": 67,
-            "max_depth": 12,
-            "learning_rate": 0.0024315987528658978,
-            "reg_lambda": 8.445962313894176,
-            "num_leaves": 46,
-            "min_data_in_leaf": 92,
-            "subsample": 0.9473068748343546,
-            "feature_fraction": 0.36126556141002836,
+            "n_estimators": 65,
+            "max_depth": 11,
+            "learning_rate": 0.0021367714662054557,
+            "reg_lambda": 7.963535719379545,
+            "num_leaves": 165,
+            "min_data_in_leaf": 95,
+            "subsample": 0.9300876830725622,
+            "feature_fraction": 0.4004282958484207,
             "random_state": 42,
             "class_weight": "balanced"
         }
@@ -122,8 +122,8 @@
     {
         "model_name": "SVM",
         "params": {
-            "C": 54.5153731593068,
-            "gamma": 0.002159596606678393,
+            "C": 9.233470318659517,
+            "gamma": 0.0043946727039851285,
             "kernel": "rbf",
             "probability": true,
             "class_weight": "balanced",

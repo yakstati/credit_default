@@ -88,8 +88,7 @@ class NaNCatboostImputer(TransformerMixin, BaseEstimator):
         if (self.model_type == 'classification'):
             self.frozen_params = {
                 'silent': True,
-                'random_state': 42,
-
+                'random_state': 42
             }
             self.imputer_ = CatBoostClassifier(**self.frozen_params)
             self.optuna_metric = make_scorer(f1_score, average='weighted')
@@ -179,5 +178,8 @@ class FeatureCreator(TransformerMixin, BaseEstimator):
         X['income_to_payment_ratio'] = X['Annual Income'] / (X['Monthly Debt'] * 12)
         X['income_to_loan_ratio'] = X['Annual Income'] / X['Current Loan Amount']
         X['income_to_max_credit_ratio'] = X['Annual Income'] / X['Maximum Open Credit']
+        X['debt_to_income_ratio'] = X['Monthly Debt'] * 12 / X['Annual Income']
+        X['loan_to_income_ratio'] = X['Current Loan Amount'] / X['Annual Income']
+        X['income_per_account'] = X['Annual Income'] / X['Number of Open Accounts']
 
         return X
