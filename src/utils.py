@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import r2_score as r2, mean_squared_error as mse, accuracy_score, precision_score, f1_score, recall_score, roc_auc_score, roc_curve
+from sklearn.metrics import r2_score as r2, mean_squared_error as mse, accuracy_score, precision_score, f1_score, recall_score, roc_auc_score, roc_curve, classification_report
 
 def evaluate_preds(true_values, pred_values, save: bool=False):
     true_values = np.ravel(true_values)
@@ -26,10 +26,7 @@ def evaluate_preds(true_values, pred_values, save: bool=False):
     return round(r2(true_values, pred_values), 3), round(np.sqrt(mse(true_values, pred_values)), 3)
 
 def show_metrics(y_test, y_pred, y_pred_proba=None, average='binary'):
-      print(f'Точность (accuracy)  = {accuracy_score(y_test, y_pred)}')
-      print(f'Точность (precision) = {precision_score(y_test, y_pred, average=average, zero_division=0)}')
-      print(f'Полнота (recall)     = {recall_score(y_test, y_pred, average=average, zero_division=0)}')
-      print(f'f1_score             = {f1_score(y_test, y_pred, average=average, zero_division=0)}')
+      print(classification_report(y_test, y_pred, digits=4))
       if (y_pred_proba is not None) and (average == 'binary'):
             print(f'roc_auc_score = {roc_auc_score(y_test, y_pred_proba)}')
             fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba, pos_label=1)
@@ -43,3 +40,11 @@ def show_metrics(y_test, y_pred, y_pred_proba=None, average='binary'):
             plt.title('ROC curve')
 
             plt.show()
+
+def show_weights(pipeline):
+      model = pipeline.named_steps['log_reg']
+      importances = model.coef_[0]
+      feature_names = model.feature_names_in_
+
+      for name, imp in sorted(zip(feature_names, importances), key=lambda x: x[1], reverse=True):
+            print(f"{name}: {imp:.4f}")

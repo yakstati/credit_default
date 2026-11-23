@@ -46,7 +46,7 @@ class DataCleaner(TransformerMixin, BaseEstimator):
         X['current_loan_amount_scaled'] = cla_scaled_mask * 1
         X.loc[cla_scaled_mask, 'Current Loan Amount'] = self.cla_median_
 
-        monthly_debt_gt_cla_mask = X['Monthly Debt'] > X['Current Loan Amount']
+        monthly_debt_gt_cla_mask = (X['Monthly Debt'] > X['Current Loan Amount']) | (X['Monthly Debt'] == 0)
         X.loc[monthly_debt_gt_cla_mask, 'Monthly Debt'] = X.loc[monthly_debt_gt_cla_mask, 'Current Loan Amount']
 
         credit_score_scaled_mask = (X['Credit Score'] > 751)
@@ -58,6 +58,9 @@ class DataCleaner(TransformerMixin, BaseEstimator):
         X['not_debtor'] = msld_isna_nocp_0 * 1
         X.loc[msld_isna_nocp_1, 'Months since last delinquent'] = 0
         X.loc[msld_isna_nocp_0, 'Months since last delinquent'] = -1
+
+        annual_income_credit_score_missed_mask = X['Annual Income'].isna() & X['Credit Score'].isna()
+        X['annual_income_credit_score_missed'] = annual_income_credit_score_missed_mask * 1
 
         return X
 
@@ -158,5 +161,23 @@ class NaNCatboostImputer(TransformerMixin, BaseEstimator):
         X_to_model = X[miss_mask]
         X_to_model = X_to_model.drop(columns=[self.target_col_name, f'{self.json_prefix}_filled'], axis=1)
         X.loc[miss_mask, self.target_col_name] = self.imputer_.predict(X_to_model)
+
+        return X
+
+class FeatureCreator(TransformerMixin, BaseEstimator):
+    def __init__(self):
+        pass
+
+    def fit(self, X, y=None):
+        self.fitted_flag_ = True
+
+        return self
+
+    def transform(self, X):
+        X = X.copy()
+
+        X['income_to_payment_ratio'] = X['Annual Income'] / (X['Monthly Debt'] * 12)
+        X['income_to_loan_ratio'] = X['Annual Income'] / X['Current Loan Amount']
+        X['income_to_max_credit_ratio'] = X['Annual Income'] / X['Maximum Open Credit']
 
         return X
