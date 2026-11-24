@@ -1,4 +1,4 @@
-from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.metrics import f1_score, make_scorer
 import pandas as pd
 from sklearn.model_selection import KFold
@@ -6,6 +6,7 @@ from catboost import CatBoostClassifier, CatBoostRegressor
 from pathlib import Path
 import optuna
 import json
+from sklearn.preprocessing import StandardScaler
 
 class DataCleaner(TransformerMixin, BaseEstimator):
     def __init__(self):
@@ -183,3 +184,30 @@ class FeatureCreator(TransformerMixin, BaseEstimator):
         X['income_per_account'] = X['Annual Income'] / X['Number of Open Accounts']
 
         return X
+
+class MetaDataframeCreator(TransformerMixin, BaseEstimator):
+    def __init__(self, lr_model, lgbm_model):
+        self.lr_model = lr_model
+        self.lgbm_model = lgbm_model
+
+    def fit(self, X, y=None):
+        self.lr_model = clone(self.lr_model)
+        self.lgbm_model = clone(self.lgbm_model)
+        self.scaler = StandardScaler()
+
+        self.scaler.fit(X)
+        self.lr_model.fit(X, y)
+        self.lgbm_model.fit(X, y)
+        return self
+
+    def transform(self, X):
+        X = X.copy()
+        X_scaled = self.scaler.transform(X)
+
+        return pd.DataFrame({
+            'lr_proba':  self.lr_model.predict_proba(X_scaled)[:, 1],
+            'lgbm_proba' : self.lgbm_model.predict_proba(X)[:, 1]
+            })
+
+
+        
