@@ -255,4 +255,19 @@ class MetaDataframeCreator(BaseEstimator, TransformerMixin):
 
     def fit_transform(self, X, y=None, **fit_params):
         return self.fit(X, y).oof_
+
+
+class SimpleErrorDeleter(TransformerMixin, BaseEstimator):
+    def __init__(self):
+        pass
+
+    def fit(self, X, y=None):
+        self.fitted_ = True
+
+        return self
+
+    def transform(self, X):
+        X = X.copy()
+        X.drop(columns=['Home Ownership', 'Years in current job', 'Purpose', 'Term'], inplace=True)
+        return X
         

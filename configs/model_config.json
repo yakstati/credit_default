@@ -116,7 +116,8 @@
             "subsample": 0.9300876830725622,
             "feature_fraction": 0.4004282958484207,
             "random_state": 42,
-            "class_weight": "balanced"
+            "class_weight": "balanced",
+            "verbosity": -1
         }
     },
     {
