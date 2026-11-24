@@ -1,7 +1,7 @@
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.metrics import f1_score, make_scorer
 import pandas as pd
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, StratifiedKFold, cross_val_predict
 from catboost import CatBoostClassifier, CatBoostRegressor
 from pathlib import Path
 import optuna
@@ -185,29 +185,74 @@ class FeatureCreator(TransformerMixin, BaseEstimator):
 
         return X
 
-class MetaDataframeCreator(TransformerMixin, BaseEstimator):
-    def __init__(self, lr_model, lgbm_model):
+from sklearn.base import BaseEstimator, TransformerMixin, clone
+from sklearn.model_selection import StratifiedKFold, cross_val_predict
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+import numpy as np
+
+class MetaDataframeCreator(BaseEstimator, TransformerMixin):
+    def __init__(self, lr_model, lgbm_model, n_splits=5, random_state=42):
         self.lr_model = lr_model
         self.lgbm_model = lgbm_model
+        self.n_splits = n_splits
+        self.random_state = random_state
 
     def fit(self, X, y=None):
-        self.lr_model = clone(self.lr_model)
-        self.lgbm_model = clone(self.lgbm_model)
-        self.scaler = StandardScaler()
 
-        self.scaler.fit(X)
-        self.lr_model.fit(X, y)
-        self.lgbm_model.fit(X, y)
+        self.lr_model_ = clone(self.lr_model)
+        self.lgbm_model_ = clone(self.lgbm_model)
+        self.scaler_ = StandardScaler()
+
+        X = X.copy()
+        y = np.asarray(y)
+
+        X_scaled = self.scaler_.fit_transform(X)
+
+        cv = StratifiedKFold(
+            n_splits=self.n_splits,
+            shuffle=True,
+            random_state=self.random_state
+        )
+
+        # === OOF  ===
+        oof_lr = cross_val_predict(
+            self.lr_model_,
+            X_scaled,
+            y,
+            cv=cv,
+            method="predict_proba",
+            n_jobs=1
+        )[:, 1]
+
+        oof_lgbm = cross_val_predict(
+            self.lgbm_model_,
+            X,
+            y,
+            cv=cv,
+            method="predict_proba",
+            n_jobs=1
+        )[:, 1]
+
+        self.oof_ = pd.DataFrame({
+            "lr_proba": oof_lr,
+            "lgbm_proba": oof_lgbm
+        }, index=X.index)
+
+        self.lr_model_.fit(X_scaled, y)
+        self.lgbm_model_.fit(X, y)
+
         return self
 
     def transform(self, X):
         X = X.copy()
-        X_scaled = self.scaler.transform(X)
+        X_scaled = self.scaler_.transform(X)
 
         return pd.DataFrame({
-            'lr_proba':  self.lr_model.predict_proba(X_scaled)[:, 1],
-            'lgbm_proba' : self.lgbm_model.predict_proba(X)[:, 1]
-            })
+            "lr_proba": self.lr_model_.predict_proba(X_scaled)[:, 1],
+            "lgbm_proba": self.lgbm_model_.predict_proba(X)[:, 1]
+        }, index=X.index)
 
-
+    def fit_transform(self, X, y=None, **fit_params):
+        return self.fit(X, y).oof_
         
