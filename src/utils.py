@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import r2_score as r2, mean_squared_error as mse, accuracy_score, precision_score, f1_score, recall_score, roc_auc_score, roc_curve, classification_report
+from sklearn.metrics import r2_score as r2, mean_squared_error as mse, roc_auc_score, roc_curve, classification_report
 
 def evaluate_preds(true_values, pred_values, save: bool=False):
     true_values = np.ravel(true_values)
